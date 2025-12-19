@@ -9,4 +9,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.27.0"
-hotfix-dictionary = "0.1.3"
+hotfix-message = { git = "https://github.com/davidsteiner/hotfix", branch = "convenience-changes-for-messages", features = ["utils-chrono"] }
+hotfix = { git = "https://github.com/davidsteiner/hotfix", branch = "convenience-changes-for-messages" }
