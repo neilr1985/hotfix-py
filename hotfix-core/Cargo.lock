@@ -398,9 +398,11 @@ dependencies = [
 name = "hotfix-py"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "hotfix",
  "hotfix-message",
  "pyo3",
+ "tokio",
 ]
 
 [[package]]

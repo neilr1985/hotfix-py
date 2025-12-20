@@ -1,4 +1,5 @@
 mod message;
+mod session;
 
 use pyo3::prelude::*;
 
@@ -6,4 +7,7 @@ use pyo3::prelude::*;
 mod hotfix_core {
     #[pymodule_export]
     use super::message::{encode_message, Message};
+
+    #[pymodule_export]
+    use super::session::Session;
 }

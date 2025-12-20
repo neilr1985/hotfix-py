@@ -43,6 +43,7 @@ _build/
 # Project-specific files
 hotfix/*.c
 hotfix/*.so
+/messages
 
 # Other files and folders
 .python-version
@@ -52,4 +53,4 @@ hotfix/*.so
 /worktrees/
 
 # Rust build files
-/target/
+/target
