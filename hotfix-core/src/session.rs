@@ -56,7 +56,7 @@ enum SessionCommand {
 }
 
 /// Python-exposed FIX session that wraps a HotFIX Initiator
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Session {
     command_tx: mpsc::UnboundedSender<SessionCommand>,
     runtime_thread: Option<thread::JoinHandle<()>>,

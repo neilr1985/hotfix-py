@@ -4,7 +4,7 @@ use hotfix_message::message::Config;
 use hotfix_message::session_fields::MSG_TYPE;
 use pyo3::{pyclass, pyfunction, pymethods, PyClassInitializer};
 
-#[pyclass]
+#[pyclass(subclass)]
 #[derive(Clone)]
 pub struct Message {
     message_type: String,

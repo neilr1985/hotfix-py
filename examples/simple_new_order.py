@@ -10,37 +10,25 @@ import time
 from datetime import datetime, UTC
 from pathlib import Path
 
-try:
-    from hotfix_core import Session, Message, InboundDecision, OutboundDecision
-except ImportError:
-    print("Error: hotfix_core module not found.")
-    print("Please run 'maturin develop' in the hotfix-core directory first.")
-    sys.exit(1)
+from hotfix import Session, Message, InboundDecision, OutboundDecision, Application
 
 
-class MyApplication:
+class MyApplication(Application):
     """
     FIX Application that handles session callbacks.
 
-    This class demonstrates the required interface for a HotFIX application:
-    - on_logon(): Called when the session logs on
-    - on_logout(reason: str): Called when the session logs out
-    - on_inbound_message(msg: Message) -> InboundDecision: Process incoming messages
-    - on_outbound_message(msg: Message) -> OutboundDecision: Process outgoing messages
+    Implements the Application protocol to receive FIX session events and messages.
     """
 
-    @staticmethod
-    def on_logon():
+    def on_logon(self) -> None:
         """Called when successfully logged on to the FIX session."""
         print("✓ FIX session logged on!")
 
-    @staticmethod
-    def on_logout(reason: str):
+    def on_logout(self, reason: str) -> None:
         """Called when the session logs out."""
         print(f"✗ FIX session logged out: {reason}")
 
-    @staticmethod
-    def on_inbound_message(msg: Message) -> InboundDecision:
+    def on_inbound_message(self, msg: Message) -> InboundDecision:
         """
         Process incoming FIX messages.
 
@@ -53,8 +41,7 @@ class MyApplication:
         print(f"← Received message: {msg}")
         return InboundDecision.Accept
 
-    @staticmethod
-    def on_outbound_message(msg: Message) -> OutboundDecision:
+    def on_outbound_message(self, msg: Message) -> OutboundDecision:
         """
         Process outgoing FIX messages before they are sent.
 
