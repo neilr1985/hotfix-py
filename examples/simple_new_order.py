@@ -11,11 +11,61 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 try:
-    from hotfix_core import Session, Message
+    from hotfix_core import Session, Message, InboundDecision, OutboundDecision
 except ImportError:
     print("Error: hotfix_core module not found.")
     print("Please run 'maturin develop' in the hotfix-core directory first.")
     sys.exit(1)
+
+
+class MyApplication:
+    """
+    FIX Application that handles session callbacks.
+
+    This class demonstrates the required interface for a HotFIX application:
+    - on_logon(): Called when the session logs on
+    - on_logout(reason: str): Called when the session logs out
+    - on_inbound_message(msg: Message) -> InboundDecision: Process incoming messages
+    - on_outbound_message(msg: Message) -> OutboundDecision: Process outgoing messages
+    """
+
+    @staticmethod
+    def on_logon():
+        """Called when successfully logged on to the FIX session."""
+        print("✓ FIX session logged on!")
+
+    @staticmethod
+    def on_logout(reason: str):
+        """Called when the session logs out."""
+        print(f"✗ FIX session logged out: {reason}")
+
+    @staticmethod
+    def on_inbound_message(msg: Message) -> InboundDecision:
+        """
+        Process incoming FIX messages.
+
+        Args:
+            msg: The incoming FIX message
+
+        Returns:
+            InboundDecision: Accept to process the message, TerminateSession to disconnect
+        """
+        print(f"← Received message: {msg}")
+        return InboundDecision.Accept
+
+    @staticmethod
+    def on_outbound_message(msg: Message) -> OutboundDecision:
+        """
+        Process outgoing FIX messages before they are sent.
+
+        Args:
+            msg: The outgoing FIX message
+
+        Returns:
+            OutboundDecision: Send to transmit, Drop to discard, or TerminateSession to disconnect
+        """
+        print(f"→ Sending message: {msg}")
+        return OutboundDecision.Send
 
 
 def create_new_order_single(cl_ord_id: str, symbol: str, side: str, quantity: int, price: float) -> Message:
@@ -58,18 +108,21 @@ def main():
     print("=== HotFIX Python Wrapper - Simple New Order Example ===\n")
 
     try:
-        # Create and start FIX session
+        # Create application instance
+        app = MyApplication()
+
+        # Create and start FIX session with the application
         print(f"Starting FIX session from config: {config_path}")
-        session = Session(str(config_path))
+        session = Session(str(config_path), app)
         print("✓ Session started successfully\n")
 
-        # Give the session a moment to connect
+        # Give the session a moment to connect and log on
         print("Waiting for connection to establish...")
         time.sleep(2)
 
         # Create a new order
         order_id = f"ORDER_{int(time.time())}"
-        print(f"Creating new order:")
+        print(f"\nCreating new order:")
         print(f"  ClOrdID: {order_id}")
         print(f"  Symbol:  EUR/USD")
         print(f"  Side:    BUY")
@@ -99,6 +152,8 @@ def main():
 
     except Exception as e:
         print(f"\n✗ Error: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
     print("✓ Session closed cleanly")

@@ -9,5 +9,5 @@ mod hotfix_core {
     use super::message::{encode_message, Message};
 
     #[pymodule_export]
-    use super::session::Session;
+    use super::session::{Session, InboundDecision, OutboundDecision};
 }

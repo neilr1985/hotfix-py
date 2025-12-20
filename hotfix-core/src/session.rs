@@ -1,13 +1,50 @@
 use hotfix::Application;
-use hotfix::application::{InboundDecision, OutboundDecision};
+use hotfix::application::{InboundDecision as RustInboundDecision, OutboundDecision as RustOutboundDecision};
 use hotfix::config::Config;
 use hotfix::initiator::Initiator;
 use hotfix::store::file::FileStore;
-use pyo3::{pyclass, pymethods, PyResult, PyErr};
+use pyo3::{pyclass, pymethods, PyResult, PyErr, Py, PyAny, Python};
+use std::sync::Arc;
 use std::thread;
 use tokio::runtime::Runtime;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, Mutex};
 use crate::message::Message;
+
+/// Python enum for inbound message decisions
+#[pyclass]
+#[derive(Clone)]
+pub enum InboundDecision {
+    Accept,
+    TerminateSession,
+}
+
+/// Python enum for outbound message decisions
+#[pyclass]
+#[derive(Clone)]
+pub enum OutboundDecision {
+    Send,
+    Drop,
+    TerminateSession,
+}
+
+impl InboundDecision {
+    fn to_rust(&self) -> RustInboundDecision {
+        match self {
+            InboundDecision::Accept => RustInboundDecision::Accept,
+            InboundDecision::TerminateSession => RustInboundDecision::TerminateSession,
+        }
+    }
+}
+
+impl OutboundDecision {
+    fn to_rust(&self) -> RustOutboundDecision {
+        match self {
+            OutboundDecision::Send => RustOutboundDecision::Send,
+            OutboundDecision::Drop => RustOutboundDecision::Drop,
+            OutboundDecision::TerminateSession => RustOutboundDecision::TerminateSession,
+        }
+    }
+}
 
 /// Commands sent from Python thread to the Tokio runtime thread
 enum SessionCommand {
@@ -27,9 +64,9 @@ pub struct Session {
 
 #[pymethods]
 impl Session {
-    /// Create a new FIX session from a config file path
+    /// Create a new FIX session from a config file path with a Python application
     #[new]
-    fn new(config_path: String) -> PyResult<Self> {
+    fn new(config_path: String, application: Py<PyAny>) -> PyResult<Self> {
         let (command_tx, mut command_rx) = mpsc::unbounded_channel();
 
         let runtime_thread = thread::spawn(move || {
@@ -39,8 +76,8 @@ impl Session {
                 let mut config = Config::load_from_path(&config_path);
                 let session_config = config.sessions.pop().expect("Config must include a session");
 
-                // Create dummy application
-                let app = DummyApplication;
+                // Create Python application wrapper
+                let app = PythonApplication::new(application);
 
                 // Create store
                 let store = FileStore::new("messages", "hotfix-py")
@@ -96,24 +133,112 @@ impl Drop for Session {
     }
 }
 
-/// Dummy application that accepts all messages (for proof of concept)
-struct DummyApplication;
+/// Application that calls Python callbacks
+struct PythonApplication {
+    callback: Arc<Mutex<Py<PyAny>>>,
+}
+
+impl PythonApplication {
+    fn new(callback: Py<PyAny>) -> Self {
+        PythonApplication {
+            callback: Arc::new(Mutex::new(callback)),
+        }
+    }
+}
 
 #[async_trait::async_trait]
-impl Application<Message> for DummyApplication {
-    async fn on_outbound_message(&self, _msg: &Message) -> OutboundDecision {
-        OutboundDecision::Send
+impl Application<Message> for PythonApplication {
+    async fn on_outbound_message(&self, msg: &Message) -> RustOutboundDecision {
+        let callback = self.callback.clone();
+        let msg_clone = msg.clone();
+
+        tokio::task::spawn_blocking(move || {
+            Python::attach(|py| {
+                let callback = callback.blocking_lock();
+
+                // Call on_outbound_message method
+                match callback.call_method1(py, "on_outbound_message", (msg_clone,)) {
+                    Ok(result) => {
+                        // Try to extract as OutboundDecision enum
+                        if let Ok(decision) = result.extract::<OutboundDecision>(py) {
+                            decision.to_rust()
+                        } else {
+                            // Default to Send if extraction fails
+                            eprintln!("Warning: on_outbound_message did not return OutboundDecision, defaulting to Send");
+                            RustOutboundDecision::Send
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error calling on_outbound_message: {}", e);
+                        RustOutboundDecision::Send
+                    }
+                }
+            })
+        })
+        .await
+        .unwrap_or(RustOutboundDecision::Send)
     }
 
-    async fn on_inbound_message(&self, _msg: Message) -> InboundDecision {
-        InboundDecision::Accept
+    async fn on_inbound_message(&self, msg: Message) -> RustInboundDecision {
+        let callback = self.callback.clone();
+
+        tokio::task::spawn_blocking(move || {
+            Python::attach(|py| {
+                let callback = callback.blocking_lock();
+
+                // Call on_inbound_message method
+                match callback.call_method1(py, "on_inbound_message", (msg,)) {
+                    Ok(result) => {
+                        // Try to extract as InboundDecision enum
+                        if let Ok(decision) = result.extract::<InboundDecision>(py) {
+                            decision.to_rust()
+                        } else {
+                            // Default to Accept if extraction fails
+                            eprintln!("Warning: on_inbound_message did not return InboundDecision, defaulting to Accept");
+                            RustInboundDecision::Accept
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error calling on_inbound_message: {}", e);
+                        RustInboundDecision::Accept
+                    }
+                }
+            })
+        })
+        .await
+        .unwrap_or(RustInboundDecision::Accept)
     }
 
-    async fn on_logout(&mut self, _reason: &str) {
-        // TODO: Log or handle logout
+    async fn on_logout(&mut self, reason: &str) {
+        let callback = self.callback.clone();
+        let reason = reason.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            Python::attach(|py| {
+                let callback = callback.blocking_lock();
+
+                if let Err(e) = callback.call_method1(py, "on_logout", (reason,)) {
+                    eprintln!("Error calling on_logout: {}", e);
+                }
+            })
+        })
+        .await
+        .ok();
     }
 
     async fn on_logon(&mut self) {
-        // TODO: Log or handle logon
+        let callback = self.callback.clone();
+
+        tokio::task::spawn_blocking(move || {
+            Python::attach(|py| {
+                let callback = callback.blocking_lock();
+
+                if let Err(e) = callback.call_method0(py, "on_logon") {
+                    eprintln!("Error calling on_logon: {}", e);
+                }
+            })
+        })
+        .await
+        .ok();
     }
 }
