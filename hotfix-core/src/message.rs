@@ -1,6 +1,7 @@
 use hotfix::message::FixMessage;
 use hotfix_message::{Field, FieldMap, Part, TagU32};
 use hotfix_message::message::Config;
+use hotfix_message::session_fields::MSG_TYPE;
 use pyo3::{pyclass, pyfunction, pymethods, PyClassInitializer};
 
 #[pyclass]
@@ -17,8 +18,8 @@ impl Message {
         PyClassInitializer::from(Message { message_type, field_map: FieldMap::default() })
     }
 
-    fn insert(&mut self, tag: u32, value: Vec<u8>) {
-        let field = Field::new(TagU32::new(tag).unwrap(), value);
+    fn insert(&mut self, tag: u32, value: String) {
+        let field = Field::new(TagU32::new(tag).unwrap(), value.into_bytes());
         self.field_map.insert(field)
     }
 }
@@ -46,7 +47,8 @@ impl FixMessage for Message {
         &self.message_type
     }
 
-    fn parse(_message: &hotfix_message::message::Message) -> Self {
-        todo!()
+    fn parse(msg: &hotfix_message::message::Message) -> Self {
+        let message_type: &str = msg.header().get(MSG_TYPE).unwrap();
+        Message { message_type: message_type.to_string(), field_map: FieldMap::default() }
     }
 }
