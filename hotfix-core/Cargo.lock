@@ -324,7 +324,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "hotfix"
 version = "0.4.2"
-source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#452152a035c458e413a986c975316eaa2d3bc6ae"
+source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#a9953caac3fbc2691abacddfecf9fe6349f97966"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -347,7 +347,7 @@ dependencies = [
 [[package]]
 name = "hotfix-codegen"
 version = "0.1.5"
-source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#452152a035c458e413a986c975316eaa2d3bc6ae"
+source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#a9953caac3fbc2691abacddfecf9fe6349f97966"
 dependencies = [
  "chrono",
  "fnv",
@@ -359,7 +359,7 @@ dependencies = [
 [[package]]
 name = "hotfix-derive"
 version = "0.1.2"
-source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#452152a035c458e413a986c975316eaa2d3bc6ae"
+source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#a9953caac3fbc2691abacddfecf9fe6349f97966"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -371,7 +371,7 @@ dependencies = [
 [[package]]
 name = "hotfix-dictionary"
 version = "0.1.4"
-source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#452152a035c458e413a986c975316eaa2d3bc6ae"
+source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#a9953caac3fbc2691abacddfecf9fe6349f97966"
 dependencies = [
  "fnv",
  "roxmltree",
@@ -383,7 +383,7 @@ dependencies = [
 [[package]]
 name = "hotfix-message"
 version = "0.2.7"
-source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#452152a035c458e413a986c975316eaa2d3bc6ae"
+source = "git+https://github.com/davidsteiner/hotfix?branch=convenience-changes-for-messages#a9953caac3fbc2691abacddfecf9fe6349f97966"
 dependencies = [
  "anyhow",
  "chrono",
@@ -591,9 +591,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "portable-atomic"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
+checksum = "f59e70c4aef1e55797c2e8fd94a4f2a973fc972cfde0e0b05f683667b0cd39dd"
 
 [[package]]
 name = "proc-macro-crate"

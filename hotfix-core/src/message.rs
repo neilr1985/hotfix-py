@@ -2,7 +2,8 @@ use hotfix::message::FixMessage;
 use hotfix_message::{Field, FieldMap, Part, TagU32};
 use hotfix_message::message::Config;
 use hotfix_message::session_fields::MSG_TYPE;
-use pyo3::{pyclass, pyfunction, pymethods, PyClassInitializer};
+use pyo3::{pyclass, pyfunction, pymethods, PyClassInitializer, PyRef, PyResult};
+use crate::repeating_group::RepeatingGroup;
 
 #[pyclass(subclass)]
 #[derive(Clone)]
@@ -21,6 +22,16 @@ impl Message {
     fn insert(&mut self, tag: u32, value: String) {
         let field = Field::new(TagU32::new(tag).unwrap(), value.into_bytes());
         self.field_map.insert(field)
+    }
+
+    fn insert_groups(&mut self, start_tag: u32, groups: Vec<PyRef<'_, RepeatingGroup>>) -> PyResult<()> {
+        if groups.is_empty() {
+            return Ok(());
+        }
+        let groups = groups.into_iter().map(|g| g.inner.clone()).collect();
+        self.field_map.set_groups(TagU32::new(start_tag).unwrap(), groups);
+
+        Ok(())
     }
 }
 

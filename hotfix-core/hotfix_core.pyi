@@ -5,7 +5,7 @@ This module provides the core FIX protocol implementation.
 """
 
 from enum import Enum
-from typing import Any
+from typing import Any, List
 
 class InboundDecision(Enum):
     """
@@ -30,6 +30,49 @@ class OutboundDecision(Enum):
     Send: OutboundDecision
     Drop: OutboundDecision
     TerminateSession: OutboundDecision
+
+class RepeatingGroup:
+    """
+    A FIX repeating group.
+
+    Repeating groups are used to represent multiple instances of a related
+    set of fields within a message, such as multiple legs in a multileg order
+    or multiple parties involved in a transaction.
+
+    Example:
+        >>> group = RepeatingGroup(555, 600)  # NoLegs group, delimiter LegSymbol
+        >>> group.append(600, "EUR/USD")  # LegSymbol
+        >>> group.append(601, "1")        # LegSymbolSfx
+    """
+
+    def __init__(self, start_tag: int, delimiter_tag: int) -> None:
+        """
+        Create a new repeating group.
+
+        Args:
+            start_tag: The tag number that indicates the count of group instances
+            delimiter_tag: The first tag that appears in each group instance
+
+        Example:
+            >>> # Create a NoLegs group (tag 555) with LegSymbol (tag 600) as delimiter
+            >>> group = RepeatingGroup(555, 600)
+        """
+        ...
+
+    def append(self, tag: int, value: str) -> None:
+        """
+        Append a field to the current group instance.
+
+        Args:
+            tag: The FIX tag number
+            value: The field value as a string
+
+        Example:
+            >>> group.append(600, "EUR/USD")  # LegSymbol
+            >>> group.append(601, "1")        # LegSymbolSfx
+            >>> group.append(602, "20231201") # LegMaturityMonthYear
+        """
+        ...
 
 class Message:
     """
@@ -67,6 +110,27 @@ class Message:
             >>> msg.insert(11, "ORDER123")  # ClOrdID
             >>> msg.insert(55, "EUR/USD")   # Symbol
             >>> msg.insert(38, "100000")    # OrderQty
+        """
+        ...
+
+    def insert_groups(self, start_tag: int, groups: List[RepeatingGroup]) -> None:
+        """
+        Insert repeating groups into the message.
+
+        Args:
+            start_tag: The tag number that indicates the count of group instances
+            groups: List of RepeatingGroup instances to insert
+
+        Example:
+            >>> msg = Message("D")  # NewOrderSingle
+            >>> # Add a multileg order with 2 legs
+            >>> leg1 = RepeatingGroup(555, 600)  # NoLegs, LegSymbol delimiter
+            >>> leg1.append(600, "EUR/USD")
+            >>> leg1.append(624, "1")  # LegSide
+            >>> leg2 = RepeatingGroup(555, 600)
+            >>> leg2.append(600, "GBP/USD")
+            >>> leg2.append(624, "2")
+            >>> msg.insert_groups(555, [leg1, leg2])
         """
         ...
 

@@ -1,5 +1,6 @@
 mod message;
 mod session;
+mod repeating_group;
 
 use pyo3::prelude::*;
 
@@ -10,4 +11,7 @@ mod hotfix_core {
 
     #[pymodule_export]
     use super::session::{Session, InboundDecision, OutboundDecision};
+
+    #[pymodule_export]
+    use super::repeating_group::RepeatingGroup;
 }

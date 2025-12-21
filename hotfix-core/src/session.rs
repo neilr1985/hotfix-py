@@ -77,7 +77,7 @@ impl Session {
                 let session_config = config.sessions.pop().expect("Config must include a session");
 
                 // Create Python application wrapper
-                let app = PythonApplication::new(application);
+                let app = ApplicationWrapper::new(application);
 
                 // Create store
                 let store = FileStore::new("messages", "hotfix-py")
@@ -134,20 +134,20 @@ impl Drop for Session {
 }
 
 /// Application that calls Python callbacks
-struct PythonApplication {
+struct ApplicationWrapper {
     callback: Arc<Mutex<Py<PyAny>>>,
 }
 
-impl PythonApplication {
+impl ApplicationWrapper {
     fn new(callback: Py<PyAny>) -> Self {
-        PythonApplication {
+        ApplicationWrapper {
             callback: Arc::new(Mutex::new(callback)),
         }
     }
 }
 
 #[async_trait::async_trait]
-impl Application<Message> for PythonApplication {
+impl Application<Message> for ApplicationWrapper {
     async fn on_outbound_message(&self, msg: &Message) -> RustOutboundDecision {
         let callback = self.callback.clone();
         let msg_clone = msg.clone();
