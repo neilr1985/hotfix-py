@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Simple example demonstrating HotFIX Python wrapper usage.
+Example demonstrating HotFIX Python wrapper with repeating groups.
 
-This script connects to a FIX session and submits a new order.
+This script connects to a FIX session and submits an FX swap order,
+demonstrating the use of repeating groups for multileg strategies.
 """
 
 import sys
@@ -10,81 +11,59 @@ import time
 from datetime import datetime, UTC
 from pathlib import Path
 
-from hotfix import Session, Message, InboundDecision, OutboundDecision, Application
+from hotfix import Session, Message, InboundDecision, OutboundDecision, Application, RepeatingGroup
 
 
 class MyApplication(Application):
-    """
-    FIX Application that handles session callbacks.
-
-    Implements the Application protocol to receive FIX session events and messages.
-    """
+    """FIX Application that handles session callbacks."""
 
     def on_logon(self) -> None:
-        """Called when successfully logged on to the FIX session."""
         print("✓ FIX session logged on!")
 
     def on_logout(self, reason: str) -> None:
-        """Called when the session logs out."""
         print(f"✗ FIX session logged out: {reason}")
 
     def on_inbound_message(self, msg: Message) -> InboundDecision:
-        """
-        Process incoming FIX messages.
-
-        Args:
-            msg: The incoming FIX message
-
-        Returns:
-            InboundDecision: Accept to process the message, TerminateSession to disconnect
-        """
         print(f"← Received message: {msg}")
         return InboundDecision.Accept
 
     def on_outbound_message(self, msg: Message) -> OutboundDecision:
-        """
-        Process outgoing FIX messages before they are sent.
-
-        Args:
-            msg: The outgoing FIX message
-
-        Returns:
-            OutboundDecision: Send to transmit, Drop to discard, or TerminateSession to disconnect
-        """
         print(f"→ Sending message: {msg}")
         return OutboundDecision.Send
 
 
-def create_new_order_single(cl_ord_id: str, symbol: str, side: str, quantity: int, price: float) -> Message:
-    """
-    Create a FIX NewOrderSingle (MsgType=D) message.
+def create_fx_swap_order(cl_ord_id: str, symbol: str, quantity: int, near_rate: float, far_rate: float, far_date: str) -> Message:
+    """Create a FIX NewOrderMultileg message for an FX swap (buy spot, sell forward)."""
+    msg = Message("AB")
 
-    Args:
-        cl_ord_id: Client order ID
-        symbol: Trading symbol (e.g., "EUR/USD")
-        side: Order side ("BUY" or "SELL")
-        quantity: Order quantity
-        price: Limit price
+    msg.insert(11, cl_ord_id)
+    msg.insert(55, symbol)
+    msg.insert(54, "1")  # Side (overall direction)
+    msg.insert(38, str(quantity))
+    msg.insert(40, "D")  # OrdType: Previously Quoted
+    msg.insert(60, datetime.now(UTC).strftime("%Y%m%d-%H:%M:%S.%f")[:-3])
 
-    Returns:
-        Message ready to send
-    """
-    msg = Message("D")  # MsgType D = NewOrderSingle
+    # NoLegs repeating group (555=count, 600=delimiter)
+    near_leg = RepeatingGroup(555, 600)
+    near_leg.append(600, symbol)
+    near_leg.append(624, "1")  # Buy
+    near_leg.append(556, "EUR")
+    near_leg.append(687, str(quantity))
+    near_leg.append(566, str(near_rate))
 
-    # Required fields for NewOrderSingle
-    msg.insert(11, cl_ord_id)  # ClOrdID
-    msg.insert(55, symbol)     # Symbol
-    msg.insert(54, "1" if side.upper() == "BUY" else "2")  # Side: 1=Buy, 2=Sell
-    msg.insert(38, str(quantity))  # OrderQty
-    msg.insert(40, "2")  # OrdType: 2=Limit
-    msg.insert(44, str(price))  # Price
-    msg.insert(60, datetime.now(UTC).strftime("%Y%m%d-%H:%M:%S.%f")[:-3])  # TransactTime
+    far_leg = RepeatingGroup(555, 600)
+    far_leg.append(600, symbol)
+    far_leg.append(624, "2")  # Sell
+    far_leg.append(556, "EUR")
+    far_leg.append(687, str(quantity))
+    far_leg.append(566, str(far_rate))
+    far_leg.append(588, far_date)
 
+    msg.insert_groups(555, [near_leg, far_leg])
     return msg
 
 
 def main():
-    # Configuration file path
     config_path = Path(__file__).parent / "config" / "test-config.toml"
 
     if not config_path.exists():
@@ -92,44 +71,40 @@ def main():
         print("Please create a FIX session configuration file.")
         sys.exit(1)
 
-    print("=== HotFIX Python Wrapper - Simple New Order Example ===\n")
+    print("=== HotFIX Python Wrapper - FX Swap Example ===\n")
 
     try:
-        # Create application instance
         app = MyApplication()
 
-        # Create and start FIX session with the application
         print(f"Starting FIX session from config: {config_path}")
         session = Session(str(config_path), app)
         print("✓ Session started successfully\n")
 
-        # Give the session a moment to connect and log on
         print("Waiting for connection to establish...")
         time.sleep(2)
 
-        # Create a new order
-        order_id = f"ORDER_{int(time.time())}"
-        print(f"\nCreating new order:")
-        print(f"  ClOrdID: {order_id}")
-        print(f"  Symbol:  EUR/USD")
-        print(f"  Side:    BUY")
-        print(f"  Qty:     100000")
-        print(f"  Price:   1.0850")
+        order_id = f"SWAP_{int(time.time())}"
+        print(f"\nCreating FX swap order:")
+        print(f"  ClOrdID:    {order_id}")
+        print(f"  Symbol:     EUR/USD")
+        print(f"  Quantity:   1000000")
+        print(f"  Near Leg:   Buy @ 1.0850 (spot)")
+        print(f"  Far Leg:    Sell @ 1.0875 (3M forward)")
+        print(f"  Far Date:   20250321")
 
-        order = create_new_order_single(
+        swap_order = create_fx_swap_order(
             cl_ord_id=order_id,
             symbol="EUR/USD",
-            side="BUY",
-            quantity=100000,
-            price=1.0850
+            quantity=1000000,
+            near_rate=1.0850,
+            far_rate=1.0875,
+            far_date="20250321"
         )
 
-        # Send the order
-        print("\nSending order to counterparty...")
-        session.send_message(order)
-        print("✓ Order sent successfully!\n")
+        print("\nSending FX swap order to counterparty...")
+        session.send_message(swap_order)
+        print("✓ FX swap order sent successfully!\n")
 
-        # Keep the session alive for a bit to receive any responses
         print("Session active. Press Ctrl+C to exit...")
         try:
             while True:

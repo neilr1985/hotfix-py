@@ -28,6 +28,13 @@ impl Message {
         if groups.is_empty() {
             return Ok(());
         }
+
+        // Automatically set the count field for the repeating group
+        let count = groups.len().to_string();
+        let count_field = Field::new(TagU32::new(start_tag).unwrap(), count.into_bytes());
+        self.field_map.insert(count_field);
+
+        // Store the group instances
         let groups = groups.into_iter().map(|g| g.inner.clone()).collect();
         self.field_map.set_groups(TagU32::new(start_tag).unwrap(), groups);
 

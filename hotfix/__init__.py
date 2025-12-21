@@ -11,6 +11,7 @@ from hotfix_core import (
     Message,
     InboundDecision,
     OutboundDecision,
+    RepeatingGroup,
     encode_message,
 )
 
@@ -23,6 +24,7 @@ __all__ = [
     "Message",
     "InboundDecision",
     "OutboundDecision",
+    "RepeatingGroup",
 
     # Protocol
     "Application",
