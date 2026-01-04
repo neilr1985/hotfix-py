@@ -1,7 +1,7 @@
 """
 Protocol definitions for HotFIX application callbacks.
 """
-
+from __future__ import annotations
 from typing import Protocol, runtime_checkable
 from hotfix_core import InboundDecision, OutboundDecision
 
